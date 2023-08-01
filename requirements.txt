@@ -1,0 +1,24 @@
+The package requirements for this Python program are:
+
+- requests
+- bs4 (BeautifulSoup)
+- nltk
+- transformers
+- wordcloud
+- matplotlib
+- schedule
+- smtplib
+
+To install these packages, you can use pip:
+
+```
+pip install requests bs4 nltk transformers wordcloud matplotlib schedule smtplib
+```
+
+Additionally, for nltk, you will need to download the `vader_lexicon` resource. You can do this by running the following code:
+
+```python
+import nltk
+
+nltk.download('vader_lexicon')
+```

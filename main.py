@@ -14,6 +14,7 @@ import nltk
 
 nltk.download('vader_lexicon')
 
+
 class NewsScraper:
     def __init__(self, websites):
         self.websites = websites
@@ -56,7 +57,8 @@ class NewsSummarizer:
         self.summarizer = pipeline('summarization')
 
     def summarize(self, article):
-        summary = self.summarizer(article['content'], max_length=120, min_length=30, do_sample=False)[0]['summary_text']
+        summary = self.summarizer(
+            article['content'], max_length=120, min_length=30, do_sample=False)[0]['summary_text']
 
         article['summary'] = summary
         return article
@@ -105,7 +107,8 @@ class WordCloudGenerator:
 
         stopwords = set(STOPWORDS)
 
-        wordcloud = WordCloud(width=800, height=400, stopwords=stopwords).generate(text)
+        wordcloud = WordCloud(width=800, height=400,
+                              stopwords=stopwords).generate(text)
 
         plt.figure(figsize=(12, 6))
         plt.imshow(wordcloud, interpolation='bilinear')
@@ -127,10 +130,12 @@ class NewsUpdater:
 
         for article in news_articles:
             summarized_article = self.summarizer.summarize(article)
-            analyzed_article = self.sentiment_analyzer.analyze_sentiment(summarized_article)
+            analyzed_article = self.sentiment_analyzer.analyze_sentiment(
+                summarized_article)
             analyzed_articles.append(analyzed_article)
 
-        categorized_articles = self.categorizer.categorize_articles(analyzed_articles)
+        categorized_articles = self.categorizer.categorize_articles(
+            analyzed_articles)
         self.wordcloud_generator.generate_word_cloud(news_articles)
         return categorized_articles
 
@@ -192,11 +197,14 @@ if __name__ == "__main__":
     receiver_email = "receiver_email@gmail.com"
     sender_email = "your_email@gmail.com"
     sender_password = "your_email_password"
-    categories = ['climate_change', 'biodiversity', 'pollution', 'renewable_energy']
+    categories = ['climate_change', 'biodiversity',
+                  'pollution', 'renewable_energy']
 
     # Create instances of NewsUpdater and NewsSubscription
-    updater = NewsUpdater(scraper, summarizer, sentiment_analyzer, categorizer, wordcloud_generator)
-    subscription = NewsSubscription(updater, email_sender, categories, receiver_email, sender_email, sender_password)
+    updater = NewsUpdater(scraper, summarizer,
+                          sentiment_analyzer, categorizer, wordcloud_generator)
+    subscription = NewsSubscription(
+        updater, email_sender, categories, receiver_email, sender_email, sender_password)
 
     # Set up news subscription schedule
     schedule.every().day.at("09:00").do(subscription.subscribe_to_news_categories)

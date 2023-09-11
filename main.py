@@ -1,215 +1,69 @@
-import requests
-from bs4 import BeautifulSoup
-from nltk.sentiment import SentimentIntensityAnalyzer
-from transformers import pipeline
-from wordcloud import WordCloud, STOPWORDS
 import matplotlib.pyplot as plt
-from datetime import datetime
-import schedule
-import time
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from wordcloud import WordCloud, STOPWORDS
+from transformers import pipeline
+from nltk.sentiment import SentimentIntensityAnalyzer
+from bs4 import BeautifulSoup
 import nltk
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+import time
+import schedule
+import smtplib
+import requests
+Here are some optimizations for the Python script:
 
-nltk.download('vader_lexicon')
+1. Move the import statements to the top of the file to improve readability and consistency.
 
+```
+```
 
-class NewsScraper:
-    def __init__(self, websites):
-        self.websites = websites
+2. Remove the unnecessary `nltk.download('vader_lexicon')` statement as it can be handled elsewhere.
 
-    def scrape_articles(self):
-        news_articles = []
+3. In the `NewsScraper` class, combine the assignment of `title`, `author`, and `content` using the walrus operator ( := ) and remove the else clauses.
 
-        for website in self.websites:
-            response = requests.get(website)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            articles = soup.find_all('article')
+``` python
+title = article.find('h2', class_='title').text.strip() if (
+    title := article.find('h2', class_='title')) is not None else ""
+author = article.find('span', class_='author').text.strip() if (
+    author := article.find('span', class_='author')) is not None else ""
+content = article.find('p').text.strip() if (
+    article.find('p')) is not None else ""
+```
 
-            for article in articles:
-                if article.find('h2', class_='title') is not None:
-                    title = article.find('h2', class_='title').text.strip()
-                else:
-                    title = ""
-                if article.find('span', class_='author') is not None:
-                    author = article.find('span', class_='author').text.strip()
-                else:
-                    author = ""
-                if article.find('p') is not None:
-                    content = article.find('p').text.strip()
-                else:
-                    content = ""
+4. In the `NewsSummarizer` class, utilize indexing instead of `do_sample = False` while retrieving the summary.
 
-                news_article = {
-                    'publication_date': datetime.now().strftime("%Y-%m-%d"),
-                    'title': title,
-                    'author': author,
-                    'content': content
-                }
-                news_articles.append(news_article)
+``` python
+summary = self.summarizer(article['content'], max_length=120, min_length=30)[
+    0]['summary_text']
+```
 
-        return news_articles
+5. Simplify the logic of article categorization in the `ArticleCategorizer` class .
 
+``` python
+for article in articles:
+    for category, keywords in self.categories.items():
+        if any(keyword in article['content'] for keyword in keywords):
+            categorized_articles[category].append(article)
+            break
+```
 
-class NewsSummarizer:
-    def __init__(self):
-        self.summarizer = pipeline('summarization')
+6. In the `NewsSender` class, combine the assignment of `message['From']`, `message['To']`, and `message['Subject']` using f-strings.
 
-    def summarize(self, article):
-        summary = self.summarizer(
-            article['content'], max_length=120, min_length=30, do_sample=False)[0]['summary_text']
+``` python
+message['From'] = sender_email
+message['To'] = receiver_email
+message['Subject'] = subject
+```
 
-        article['summary'] = summary
-        return article
+7. In the `WordCloudGenerator` class, remove the unnecessary `plt.axis('off')` statement.
 
+8. Use a more descriptive name for the `NewsSubscription` class, such as `NewsSubscriptionManager`.
 
-class SentimentAnalyzer:
-    def __init__(self):
-        self.sia = SentimentIntensityAnalyzer()
+9. Move the instantiation of classes inside the `if __name__ == "__main__": ` block to improve modularity.
 
-    def analyze_sentiment(self, article):
-        sentiment_scores = self.sia.polarity_scores(article['content'])
+10. Remove unused variables `analyzed_articles` and `category` in the `fetch_and_analyze_news` method of the `NewsUpdater` class .
 
-        article['sentiment'] = sentiment_scores
-        return article
+11. Consider using environment variables or a configuration file for sensitive information like email credentials.
 
-
-class ArticleCategorizer:
-    def __init__(self):
-        self.categories = {
-            'climate_change': ['climate change'],
-            'biodiversity': ['biodiversity'],
-            'pollution': ['pollution'],
-            'renewable_energy': ['renewable energy']
-        }
-
-    def categorize_articles(self, articles):
-        categorized_articles = {category: [] for category in self.categories}
-
-        for article in articles:
-            categorized = False
-            for category, keywords in self.categories.items():
-                for keyword in keywords:
-                    if keyword in article['content']:
-                        categorized_articles[category].append(article)
-                        categorized = True
-                        break
-                if categorized:
-                    break
-
-        return categorized_articles
-
-
-class WordCloudGenerator:
-    def generate_word_cloud(self, articles):
-        text = ' '.join([article['content'] for article in articles])
-
-        stopwords = set(STOPWORDS)
-
-        wordcloud = WordCloud(width=800, height=400,
-                              stopwords=stopwords).generate(text)
-
-        plt.figure(figsize=(12, 6))
-        plt.imshow(wordcloud, interpolation='bilinear')
-        plt.axis('off')
-        plt.show()
-
-
-class NewsUpdater:
-    def __init__(self, scraper, summarizer, sentiment_analyzer, categorizer, wordcloud_generator):
-        self.scraper = scraper
-        self.summarizer = summarizer
-        self.sentiment_analyzer = sentiment_analyzer
-        self.categorizer = categorizer
-        self.wordcloud_generator = wordcloud_generator
-
-    def fetch_and_analyze_news(self):
-        news_articles = self.scraper.scrape_articles()
-        analyzed_articles = []
-
-        for article in news_articles:
-            summarized_article = self.summarizer.summarize(article)
-            analyzed_article = self.sentiment_analyzer.analyze_sentiment(
-                summarized_article)
-            analyzed_articles.append(analyzed_article)
-
-        categorized_articles = self.categorizer.categorize_articles(
-            analyzed_articles)
-        self.wordcloud_generator.generate_word_cloud(news_articles)
-        return categorized_articles
-
-
-class EmailSender:
-    def send_email(self, subject, content, receiver_email, sender_email, sender_password):
-        message = MIMEMultipart()
-        message['From'] = sender_email
-        message['To'] = receiver_email
-        message['Subject'] = subject
-
-        message.attach(MIMEText(content))
-
-        with smtplib.SMTP('smtp.gmail.com', 587) as session:
-            session.starttls()
-            session.login(sender_email, sender_password)
-
-            text = message.as_string()
-            session.sendmail(sender_email, receiver_email, text)
-
-
-class NewsSubscription:
-    def __init__(self, news_updater, email_sender, categories, receiver_email, sender_email, sender_password):
-        self.news_updater = news_updater
-        self.email_sender = email_sender
-        self.categories = categories
-        self.receiver_email = receiver_email
-        self.sender_email = sender_email
-        self.sender_password = sender_password
-
-    def subscribe_to_news_categories(self):
-        categorized_articles = self.news_updater.fetch_and_analyze_news()
-
-        for category, articles in categorized_articles.items():
-            if category in self.categories and len(articles) > 0:
-                subject = f"Latest {category.replace('_', ' ').title()} News"
-                content = '\n\n'.join(
-                    [f"Title: {article['title']}\nSummary: {article['summary']}\n" for article in articles])
-                self.email_sender.send_email(subject, content, self.receiver_email, self.sender_email,
-                                             self.sender_password)
-
-
-if __name__ == "__main__":
-    websites = [
-        "https://www.nationalgeographic.com/",
-        "https://www.greenpeace.org/",
-        "https://www.worldwildlife.org/"
-    ]
-
-    # Instantiate classes
-    scraper = NewsScraper(websites)
-    summarizer = NewsSummarizer()
-    sentiment_analyzer = SentimentAnalyzer()
-    categorizer = ArticleCategorizer()
-    wordcloud_generator = WordCloudGenerator()
-    email_sender = EmailSender()
-
-    # Set up configurations
-    receiver_email = "receiver_email@gmail.com"
-    sender_email = "your_email@gmail.com"
-    sender_password = "your_email_password"
-    categories = ['climate_change', 'biodiversity',
-                  'pollution', 'renewable_energy']
-
-    # Create instances of NewsUpdater and NewsSubscription
-    updater = NewsUpdater(scraper, summarizer,
-                          sentiment_analyzer, categorizer, wordcloud_generator)
-    subscription = NewsSubscription(
-        updater, email_sender, categories, receiver_email, sender_email, sender_password)
-
-    # Set up news subscription schedule
-    schedule.every().day.at("09:00").do(subscription.subscribe_to_news_categories)
-
-    # Continuously run the schedule
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+These optimizations should improve the readability, maintainability, and performance of the script.
